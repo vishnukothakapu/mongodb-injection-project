@@ -11,28 +11,22 @@
 1. [Overview](#overview)
 2. [Features](#features)
 3. [Tech stack & tools](#tech-stack--tools)
-4. [Prerequisites](#prerequisites)
-5. [Repository structure](#repository-structure)
-6. [Installation & setup](#installation--setup)
+4. [Repository structure](#repository-structure)
+5. [Installation & setup](#installation--setup)
 
    * Backend
    * Frontend
-7. [Environment variables (.env.example)](#environment-variables-envexample)
-8. [Running the demo](#running-the-demo)
+6. [Environment variables (.env.example)](#environment-variables-envexample)
+7. [Running the demo](#running-the-demo)
 
    * Start backend
    * Start frontend
    * Enabling vulnerable routes
-9. [How to perform the demonstration (step-by-step)](#how-to-perform-the-demonstration-step-by-step)
+8. [How to perform the demonstration (step-by-step)](#how-to-perform-the-demonstration-step-by-step)
 
    * 1. Operator Injection: safe vs vulnerable login
    * 2. Aggregation pipeline demo  
    * 3. `$where` / eval demo (disabled by default)
-10. [Example payloads & curl requests](#example-payloads--curl-requests)
-11. [Security fixes implemented (what to show in presentation)](#security-fixes-implemented-what-to-show-in-presentation)
-12. [Notes, caveats & safe usage](#notes-caveats--safe-usage)
-13. [Optional enhancements & next steps](#optional-enhancements--next-steps)
-14. [Acknowledgements & license](#acknowledgements--license)
 
 ---
 
@@ -109,7 +103,7 @@ mongod --version
 └─ .env.example
 ```
 
-> (Your repo may use slightly different names / layout — adapt commands below to your repo layout.)
+
 
 ---
 
@@ -224,42 +218,42 @@ Each step includes what to do, what to expect, and which file(s) to show in slid
 3. Use `Fill operator` to set `username` to the operator payload: `{"$ne":""}` and click *Vulnerable Login* — the vulnerable route may treat the payload as an operator and return a match even without knowing a password.
 4. Click *Secure Login* with the same operator payload and show it fails (validation prevents it or the string is sanitized).
 
-**Files to show:** `routes/vuln.js` (login handler), `routes/secure.js` (Joi validation and sanitize). Explain `mongoSanitize` middleware if used.
+**VULNERABLE**
+
+1. Payload/Input:
+
+`{"username":{"$ne":null},"password":{"$ne":null}}
+`
+Curl: 
+
+`curl -X POST http://localhost:8080/vuln/login-operator-injection \
+  -H "Content-Type: application/json" \
+  -d '{"username":{"$ne":null},"password":{"$ne":null}}'
+`
+
+2. Result/Output:
+   
+   <img width="1222" height="816" alt="image" src="https://github.com/user-attachments/assets/ed1bcfdf-d3d9-40b6-bfda-2346e123a541" />
+
+**SECURE**
+
+1. Payload:
+   
+ `{"username":{"$ne":null},"password":{"$ne":null}}`
+
+ Curl:
+ 
+ `curl -X POST http://localhost:8080/secure/login-secure \
+  -H "Content-Type: application/json" \
+  -d '{"username":{"$ne":null},"password":{"$ne":null}}`
+
+2. Result/Output:
+<img width="1211" height="705" alt="image" src="https://github.com/user-attachments/assets/c2336b1b-2383-4349-9994-614439933879" />
 
 ---
 
-### 2) Projection / data-exfiltration demo
 
-* **Goal:** Show how attackers can exfiltrate sensitive fields (e.g., password hashes) when projection is trusted from user input.
-
-**Vulnerable endpoint:** `GET /vuln/users-vuln?fields=username,password` — demonstrates unsafe projection usage.
-
-**Steps:**
-
-1. With vuln routes enabled, call `/vuln/users-vuln?fields=username,password` (frontend or curl).
-2. Show returned documents include `password` or other fields that should be hidden.
-3. Then call `/secure/users-secure?fields=username` (secure route whitelists fields, reject unknown fields).
-
-**Files to show:** `routes/vuln.js` (users-vuln) and `routes/secure.js` (users-secure projection whitelist).
-
----
-
-### 3) Regex / ReDoS demo
-
-* **Goal:** Demonstrate risks building `RegExp` from uncontrolled user input (backtracking / ReDoS / long latency).
-
-**Vulnerable endpoint:** `GET /vuln/search-vuln?q=<user-input>` (creates `new RegExp(q, 'i')` directly).
-
-**Steps:**
-
-1. Issue a complex regex string that triggers heavy backtracking (for demo keep it safe; do NOT run intentionally harmful patterns on shared machines).
-2. Show the request takes much longer / times out compared to secure search which escapes regex metacharacters and uses anchored prefix matching.
-
-**Files to show:** `routes/vuln.js` (search-vuln) and `routes/secure.js` (search-secure, escapeRegex).
-
----
-
-### 4) Aggregation pipeline demo
+### 2) Aggregation pipeline demo
 
 * **Goal:** Show dangers of executing user-supplied aggregation pipelines blindly and how to validate stage/keys.
 
