@@ -28,8 +28,6 @@
    * 1. Operator Injection: safe vs vulnerable login
    * 2. Aggregation pipeline demo  
    * 3. `$where` / eval demo (disabled by default)
-   * 4. Projection/data exfiltration demo
-   * 5. Regex / ReDoS demo
 10. [Example payloads & curl requests](#example-payloads--curl-requests)
 11. [Security fixes implemented (what to show in presentation)](#security-fixes-implemented-what-to-show-in-presentation)
 12. [Notes, caveats & safe usage](#notes-caveats--safe-usage)
