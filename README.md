@@ -1,7 +1,5 @@
 # MongoDB Injection Demo — ISSC Course
 
-**Detailed README (for submission & demonstration)**
-
 > Demo project for the *Information Systems Security Course (ISSC)* showcasing NoSQL / MongoDB injection vulnerabilities and their mitigations. This repository intentionally includes both **vulnerable** and **secure** routes so you can observe attacks and verify fixes.
 
 ---
@@ -11,18 +9,18 @@
 1. [Overview](#overview)  
 2. [Features](#features)  
 3. [Tech stack & tools](#tech-stack--tools)  
-4. [Repository structure](#repository-structure)  
+4. [Repository structure](#repository-structure-high-level)  
 5. [Installation & setup](#installation--setup)  
 6. [Environment variables (.env.example)](#environment-variables-envexample)  
 7. [Running the demo](#running-the-demo)  
 8. [How to perform the demonstration (step-by-step)](#how-to-perform-the-demonstration-step-by-step)  
    1. [Operator Injection: Vulnerable vs Secure login](#1-operator-injection-vulnerable-vs-secure-login)  
-   2. [Aggregation pipeline demo](#2-aggregation-pipeline-demo)  
+   2. [Aggregation pipeline demo](#2-aggregation-pipeline-demo)
+   3. $where / eval demo (disabled by default)
+   4. Projection/data exfiltration Injection
+   5. Regex / ReDoS Injection
 9. [Example payloads & curl requests](#example-payloads--curl-requests)  
-10. [Security fixes implemented (what to show in presentation)](#security-fixes-implemented-what-to-show-in-presentation)  
-11. [Notes, caveats & safe usage](#notes-caveats--safe-usage)  
-12. [Optional enhancements & next steps](#optional-enhancements--next-steps)  
-13. [Acknowledgements & license](#acknowledgements--license)
+10. [Acknowledgements & license](#acknowledgements--license)
 
 ---
 
@@ -77,7 +75,6 @@ Use this project to reproduce attacks, show impact, and demonstrate how secure c
 │     └─ mongoSanitize.js
 ├─ frontend/ (react app)
 │  └─ src/components/Login.jsx
-├─ assets/            # add screenshots here (placeholders used in README)
 ├─ README.md
 └─ .env.example
 ```
@@ -123,7 +120,6 @@ ALLOW_VULN=0            # set to 1 only on local demo machines
 ALLOW_EVAL_VULN=0       # set to 1 ONLY when you intend to demo $where/eval (dangerous)
 ```
 
-> **Important:** Keep `ALLOW_VULN=0` and `ALLOW_EVAL_VULN=0` on any shared or public machine. Only set to `1` in an isolated local VM or dev laptop when demonstrating.
 
 ---
 
@@ -195,7 +191,10 @@ curl -X POST http://localhost:8080/vuln/login-operator-injection \
 ```
 
 **Expected vulnerable output (demo):**
-![Operator Injection - Vulnerable Output](./assets/operator-vuln-output.png)
+
+<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/98c1e380-de64-4414-b3a9-a5d1cda71e9a" />
+
+
 
 **Secure check (should be blocked):**
 ```bash
@@ -206,9 +205,9 @@ curl -X POST http://localhost:8080/secure/login-secure \
 ```
 
 **Expected secure output (blocked):**
-![Operator Injection - Secure Blocked](./assets/operator-secure-output.png)
 
-**Files to show:** `routes/vuln.js` and `routes/secure.js` (Joi schema + sanitize middleware).
+<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/94ba3272-7a43-4015-8379-c9e90498ab9b" />
+
 
 ---
 
@@ -236,7 +235,9 @@ curl -X POST http://localhost:8080/vuln/aggregate-vuln \
   -d '{"pipeline":[{"$match":{"role":"user"}},{"$project":{"username":1,"email":1}}]}'
 ```
 **Expected:** returns matching documents with projected fields.
-![Aggregation - Benign Vulnerable](./assets/aggregation-benign-vuln.png)
+
+<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/4e41d73f-0395-413b-a150-0bc976e410a4" />
+
 
 #### Step B — Malicious pipeline (vulnerable endpoint)
 **Malicious payload (leak admin accounts / sensitive fields):**
@@ -255,7 +256,8 @@ curl -X POST http://localhost:8080/vuln/aggregate-vuln \
   -d '{"pipeline":[{"$match":{"$expr":{"$eq":["$role","admin"]}}},{"$project":{"username":1,"email":1,"password":1}}]}'
 ```
 **Expected (vulnerable):** returns admin documents — demonstrates risk.
-![Aggregation - Malicious Vulnerable Output](./assets/aggregation-vuln-output.png)
+
+<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/df7fdd6b-e550-4520-8dd3-c95611c918aa" />
 
 #### Step C — Same malicious payload vs secure endpoint
 **curl (secure):**
@@ -268,27 +270,9 @@ curl -X POST http://localhost:8080/secure/aggregate-secure \
 ```json
 { "error": "invalid pipeline" }
 ```
-![Aggregation - Secure Blocked](./assets/aggregation-secure-output.png)
 
-#### Step D — Allowed secure pipeline example (succeeds)
-**Allowed payload:**
-```json
-{
-  "pipeline": [
-    { "$match": { "username": "alice" } },
-    { "$project": { "username": 1, "email": 1 } },
-    { "$limit": 10 }
-  ]
-}
-```
-**curl:**
-```bash
-curl -X POST http://localhost:8080/secure/aggregate-secure \
-  -H "Content-Type: application/json" \
-  -d '{"pipeline":[{"$match":{"username":"alice"}},{"$project":{"username":1,"email":1}},{"$limit":10}]}'
-```
-**Expected (secure):** returns limited results with only whitelisted fields.
-![Aggregation - Secure Allowed](./assets/aggregation-allowed-secure.png)
+<img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/b6a99949-6cd5-48fa-a310-f50a446baa04" />
+
 
 ---
 
@@ -324,49 +308,9 @@ curl -X POST http://localhost:8080/secure/aggregate-secure \
 
 ---
 
-## Security fixes implemented (what to show in presentation)
-
-- **Password hashing** and `password: { select: false }` in `models/User.js` (pre-save hashing and compare method).
-- **Joi validation** in `/secure/login-secure` to enforce input types and lengths.
-- **Sanitization utilities**: `utils/sanitize.js` (string sanitization) and `utils/mongoSanitize.js` (remove `$`/`.` keys from objects).
-- **Projection whitelisting** in `/secure/users-secure` (only allowed fields).
-- **Aggregation pipeline validation** (`validatePipeline()`): allowlist stages (`$match`, `$project`, `$limit`, `$sort`), disallow `$expr`, `$where`, `$function`, `$lookup`, etc., and whitelist projection fields.
-- **VULN gating**: `ALLOW_VULN` and `ALLOW_EVAL_VULN` environment flags — vulnerable routes are mounted only when explicitly enabled.
-- **Demo protections**: the vulnerable aggregate route includes a shallow stage limit and result limit to avoid runaway responses during demo.
-
----
-
-## Notes, caveats & safe usage
-
-- **Never** enable `ALLOW_VULN=1` or `ALLOW_EVAL_VULN=1` on public or shared servers — only enable in isolated local environments for demonstration.
-- The vulnerable code is intentionally insecure for education and must not be used in production.
-- The `$where`/eval style of injection is extremely risky — keep `ALLOW_EVAL_VULN=0` unless you perform a controlled demo on an isolated machine.
-- For production, prefer server-built pipelines and parameterized inputs instead of accepting raw pipeline arrays.
-
----
-
-## Optional enhancements & next steps
-
-- Add automated tests (Jest + Supertest) that assert secure routes block attack payloads and vuln routes behave as documented.
-- Add logging & alerting for suspicious operator-like keys.
-- Expand `validatePipeline()` to support a DSL (e.g., `{ filter: {...}, fields: [...] }`) to build safe pipelines server-side.
-- Provide a short `README_SHORT.md` or a slide deck summarizing the demo for ISSC presentation.
-
----
-
 ## Acknowledgements & license
 
 Prepared for the **Information Systems Security Course (ISSC)**. This repository contains intentionally vulnerable code for pedagogical purposes only.
 
-Add your preferred license (e.g., MIT) and any acknowledgements here.
-
 ---
 
-### Final notes
-- Place your screenshots into `assets/` and keep the same filenames used above (or update the paths).  
-- If you want, I can also:
-  - generate `README_SHORT.md` (one-page summary),  
-  - paste the final recommended `validatePipeline()` and `aggregate-vuln` guard code into the repo, or  
-  - create a short slide deck summarizing the two demos.
-
-Would you like any of those extras?
